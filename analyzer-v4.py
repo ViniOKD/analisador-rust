@@ -36,8 +36,9 @@ NUMBER: /\d+/
 
 program = """
 fn main() {
-let a = 20;
-a = "ola";
+  fn imprime_1(){
+    1;}
+    imprime_1();
 
 }
 
