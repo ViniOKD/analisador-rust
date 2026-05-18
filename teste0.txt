@@ -1,5 +1,7 @@
 fn main(){
-    let a = 12;
+    let mut a = 12;
+    println('{}', a);
     a = 23;
-    println(12);
+    println('{}', a);
+    
 }

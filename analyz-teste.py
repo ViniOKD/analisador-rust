@@ -14,6 +14,7 @@ else:
     print("usage: program.py instructions.txt")
     sys.exit()
 
+
 symbol_table = collections.ChainMap({'scope': 'global'})
 
 class Walker:
@@ -27,10 +28,15 @@ class Walker:
     def attribution(self, NAME, NUMBER):
         if NAME in symbol_table:
             info = symbol_table[NAME]
-            if info['mut']:
+            print(symbol_table)
+            if info.get('mut'):
+                symbol_table[NAME]['value'] = NUMBER
                 print(f'att: {NAME} = {NUMBER}')
             else:
-                rich.print(f'[red]error: cannot assing to immutable variable "{NAME}"[/red]')
+                if info.get('const'):
+                    rich.print(f'[red]error: invalid left-hand side of assignment')
+                else:
+                    rich.print(f'[red]error: cannot assign to immutable variable "{NAME}"[/red]')
         else:
             rich.print(f'[red]error: unknown variable', NAME)
 
@@ -40,25 +46,29 @@ class Walker:
         name = args[-2]
         value = args[-1]
 
-        if name not in symbol_table.maps[0]:
-            symbol_table.maps[0][name] = {'type': 'int', 'mut': is_mut}
-            print(f'let {'mut ' if is_mut else ''}{name} = {value}')
-        else:
-            rich.print('[red]error: redefined variable', NAME)
+        if name in symbol_table and symbol_table[name].get('const'):
+            rich.print('[red]error: refutable pattern in local binding ')
+        else: 
+            symbol_table.maps[0][name] = {'type': 'int','value': value, 'mut': is_mut}
+            print(f'let {"mut " if is_mut else ""}{name} = {value}')
 
-    def definition_const():
-        is_const = True if args[0] == 'const' else False # Checa se a definicao comeca com const
-        name = args[-2]
-        value = args[-1]
-
+    def definition_const(self, *args):
+        name = args[0]
+        const_type = args[1]
+        value = args[2]
+        
         if name not in symbol_table.maps[0]:
-            symbol_table.maps[0][name] = {'type': 'int', 'const': is_const}
-            print(f'let {'const ' if is_const else ''}{name} = {value}')
+            symbol_table.maps[0][name] = {'type': 'int','value': value, 'const': True}
+            print(f'const {name} :{const_type} = {value}')
         else:
-            rich.print(f'[red]error: the name `{NAME}` is defined multiple times')
+            rich.print(f'[red]error: the name `{name}` is defined multiple times')
+
 
     def println(self, arg):
-        rich.print(f'[blue]{arg}')
+        if arg in symbol_table:
+            rich.print(f'[blue]{symbol_table[arg].get('value')}')
+        else:
+            rich.print(f'[red]error: cannot find value "{arg}" in this scope')
 
     def visit(self, node):
         ''' Implementa um padrão de Recursive Tree traversal (Percorrimento transversal de árvore) com Dispatch Dinâmico

@@ -4,44 +4,30 @@ import rich
 
 # version 4 [nested functions]
 grammar = r"""
-program:     item* 
+program:     definition* function* call*
+function:    NAME "{" statement* "}" end
+end:
+?statement:  definition | attribution | function | call
+definition:  "var" NAME
+attribution: NAME "=" NUMBER
+call:        NAME "()"
 
-?item: function
-
-function:    "fn" NAME "()" block
-
-block: "{" statement* "}" 
-
-?statement:  definition | attribution | call
-
-
-definition: "let" MUT? NAME ":" type? "="  expression ";"
-attribution: NAME "=" NUMBER ";"
-call:        NAME "()" ";"
-
-
-
-?expression: reference | NAME | NUMBER
-reference: REF MUT? NAME
-?type: REF MUT? BASE_TYPES | BASE_TYPES
-
-BASE_TYPES: "i32" | "f64" | "bool" | "str"
-REF:    "&"
-MUT:    "mut"
 NAME:   /\w+/
 NUMBER: /\d+/
 %ignore /[ \t\n\r]+/
-%ignore /\/\/[^\n]*/
 """
 
 program = """
-fn main() {
-  fn imprime_1(){
-    1;}
-    imprime_1();
-
+var a
+f {
+  var c
+  g {
+     var e
+     c = 1
+  }
+  g()
 }
-
+f()
 """
 
 parser = lark.Lark(grammar, start='program')
@@ -57,15 +43,10 @@ class Walker:
     rich.print(symbol_table)
     symbol_table.maps.pop(0)
 
-  def definition(self, *args):
-    is_mut = len(args) == 3
-    name = args[-2]
-    value = args[-1]
-
-
-    if name not in symbol_table.maps[0]:
-      symbol_table.maps[0][name] = {'type': 'int', 'mut': is_mut}
-      print(f"let {'mut ' if is_mut else ''}{name} = {value}")
+  def definition(self, NAME):
+    if NAME not in symbol_table.maps[0]:
+      symbol_table[NAME] = 'int'
+      print('def:', NAME)
     else:
       rich.print('[red]error: redefined variable', NAME)
 
