@@ -1,4 +1,5 @@
 fn main(){
+    // teste de reatribuicao com let mut
     let mut a = 12;
     println('{}', a);
     a = 23;

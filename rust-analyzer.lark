@@ -13,8 +13,7 @@ println: "println" "(" "\"{}\"" "," expression ")" ";"
 
 
 definition: definition_let | definition_const
-def_w_type: "let" MUT? NAME ":" type? "="  expression ";" 
-definition_let: "let" MUT? NAME "=" expression ";"
+definition_let: "let" MUT? NAME [":" type] "=" expression ";"
 definition_const: "const" NAME ":" type "=" expression ";"
 attribution: NAME "=" NUMBER ";"
 call:        NAME "(" arguments? ")" ";"

@@ -3,7 +3,6 @@ import sys
 import lark
 import rich
 
-
 with open("rust-analyzer.lark", 'r') as file:
     grammar = file.read()
 
@@ -13,7 +12,6 @@ if len(sys.argv) > 1:
 else:
     print("usage: program.py instructions.txt")
     sys.exit()
-
 
 symbol_table = collections.ChainMap({'scope': 'global'})
 
@@ -40,16 +38,31 @@ class Walker:
         else:
             rich.print(f'[red]error: unknown variable', NAME)
 
-
     def definition_let(self, *args):
-        is_mut = True if args[0] == 'mut' else False
-        name = args[-2]
-        value = args[-1]
+        # Unpack depending on which optional tokens are present
+        mut = None
+        name = None
+        var_type = None
+        value = None
+
+        for arg in args:
+            if arg == 'mut':
+                mut = arg
+            elif str(arg).isdigit():
+                value = arg
+            elif arg in ('i32', 'f64', 'bool', 'str'):
+                var_type = arg
+            else:
+                name = arg
+
+        is_mut = mut == 'mut'
+        if var_type is None:
+            var_type = 'i32'
 
         if name in symbol_table and symbol_table[name].get('const'):
-            rich.print('[red]error: refutable pattern in local binding ')
-        else: 
-            symbol_table.maps[0][name] = {'type': 'int','value': value, 'mut': is_mut}
+            rich.print('[red]error: refutable pattern in local binding')
+        else:
+            symbol_table.maps[0][name] = {'type': var_type, 'value': value, 'mut': is_mut}
             print(f'let {"mut " if is_mut else ""}{name} = {value}')
 
     def definition_const(self, *args):
@@ -79,8 +92,6 @@ class Walker:
         for child in node.children: # Olha para todos os filhos do nó atual recursivamente
             if type(child) is lark.Tree:
                 self.visit(child)
-
-    
 
 def main():
     parser = lark.Lark(grammar, start='start')
