@@ -17,15 +17,15 @@ symbol_table = collections.ChainMap({'scope': 'global'})
 
 class Walker:
     def function(self, NAME):
-        symbol_table.maps.insert(0, {'scope': NAME + '()'})
+        symbol_table.maps.insert(0, {'scope': NAME + '()', 'type': 'function'})
     
     def end(self):
         rich.print(symbol_table)
         symbol_table.maps.pop(0)
     
     def attribution(self, NAME, NUMBER):
-        if NAME in symbol_table:
-            info = symbol_table[NAME]
+        info = self.look(NAME)
+        if info:
             print(symbol_table)
             if info.get('mut'):
                 symbol_table[NAME]['value'] = NUMBER
@@ -69,17 +69,21 @@ class Walker:
         name = args[0]
         const_type = args[1]
         value = args[2]
-        
+        inferred_type = self.infer_type(value)
+        if inferred_type != const_type:
+            rich.print(
+                f'[red]error: expected {const_type}, found {inferred_type}[/red]')
+            return
         if name not in symbol_table.maps[0]:
-            symbol_table.maps[0][name] = {'type': 'int','value': value, 'const': True}
-            print(f'const {name} :{const_type} = {value}')
+            symbol_table.maps[0][name] = {'type': const_type,'value': value,'const': True}
+            print(f'const {name}: {const_type} = {value}')
         else:
-            rich.print(f'[red]error: the name `{name}` is defined multiple times')
-
+            rich.print(f'[red]error: the name `{name}` is defined multiple times[/red]')
 
     def println(self, arg):
-        if arg in symbol_table:
-            rich.print(f'[blue]{symbol_table[arg].get('value')}')
+        info = self.look(arg)
+        if info:
+            rich.print(f'[blue]{info.get("value")}')
         else:
             rich.print(f'[red]error: cannot find value "{arg}" in this scope')
 
@@ -92,6 +96,23 @@ class Walker:
         for child in node.children: # Olha para todos os filhos do nó atual recursivamente
             if type(child) is lark.Tree:
                 self.visit(child)
+
+    def infer_type(self, value):
+        if str(value).isdigit():
+            return 'i32'
+
+        if value in ('true', 'false'):
+            return 'bool'
+
+        return 'unknown'
+    
+    def look(self, name):
+        for scope in symbol_table.maps:
+            if name in scope:
+                return scope[name]
+            if scope.get('type') == 'function':
+                break
+        return None
 
 def main():
     parser = lark.Lark(grammar, start='start')
