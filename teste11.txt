@@ -1,0 +1,8 @@
+fn main(){
+    imprime_2();
+}
+
+fn imprime_2(){
+    let a = 2;
+    println("{}", a);
+}

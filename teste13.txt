@@ -1,0 +1,7 @@
+fn main(){
+    imprime_x(11);
+}
+
+fn imprime_x(x: i32){
+    println("{}", x);
+}

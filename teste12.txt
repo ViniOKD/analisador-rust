@@ -1,0 +1,12 @@
+fn outer() {
+    // TEM Q FUNCIONA
+   let x = 10;
+
+   let inner = || println("{}", x);
+   inner();
+}
+
+
+fn main() {
+    outer();
+}

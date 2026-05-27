@@ -6,6 +6,7 @@ fn main(){
         let a = 20;
         println("{a}");
     }
+    f();
     println("{a}");
     
 }
