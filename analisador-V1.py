@@ -23,6 +23,9 @@ class Walker:
         rich.print(symbol_table)
         symbol_table.maps.pop(0)
     
+    def call(self, *args):
+        pass
+
     def attribution(self, NAME, NUMBER):
         info = self.look(NAME)
         if info:
@@ -39,7 +42,7 @@ class Walker:
             rich.print(f'[red]error: unknown variable', NAME)
 
     def definition_let(self, *args):
-        # Unpack depending on which optional tokens are present
+        
         mut = None
         name = None
         var_type = None
@@ -107,11 +110,14 @@ class Walker:
         return 'unknown'
     
     def look(self, name):
-        for scope in symbol_table.maps:
-            if name in scope:
-                return scope[name]
-            if scope.get('type') == 'function':
-                break
+        current_scope = symbol_table.maps[0]
+        if name in current_scope:
+            return current_scope[name]
+        
+        global_scope = symbol_table.maps[-1]
+        if name in global_scope:
+            return global_scope[name]
+        
         return None
 
 def main():
