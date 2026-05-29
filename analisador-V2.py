@@ -19,10 +19,11 @@ symbol_table = collections.ChainMap({'scope': 'global'})
 class Definer(lark.visitors.Interpreter):
     def __init__(self):
         super().__init__()
-        self.functions = {}
+        self.functions = collections.ChainMap()
 
     def function(self, node):
         name = str(node.children[0])
+        
         if name in self.functions:
             rich.print(f'[red]error[E0428]: the name `{name}` is defined multiple times')
             sys.exit()
@@ -34,8 +35,15 @@ class Definer(lark.visitors.Interpreter):
                     params.append(str(param_node.children[0]))
         
         
-        self.functions[name] = {"node": node, "params": params}
-        print('TESTE: DEFININDO FUNCAO', name, f"com parâmetros {params}")
+        func_info = {"node": node, "params": params, "local_fn": {}}
+
+        self.functions.maps[0][name] = func_info
+        
+        self.functions.maps.insert(0, func_info["local_fn"])
+        self.visit_children(node)
+        self.functions.maps.pop(0)
+        print('TESTE: DEFININDO FUNCAO', name, f"com parâmetros {params}")   
+        
 
 
 
@@ -44,19 +52,22 @@ class Walker(lark.visitors.Interpreter):
         super().__init__()
         self.functions = functions
 
-    def function(self, node):
-        pass
 
     def block(self, node):
         self.visit_children(node)
 
+    def function(self, node):
+        pass
+
     def call(self, node):
         name = str(node.children[0])
+        fn = self.look(name)
         
-        if name not in self.functions:
+        if fn is None or fn.get('type') != 'function':
             rich.print(f"[red]error: cannot find function `{name}` in this scope[/red]")
             sys.exit()
-            return
+        
+        fn_info = fn['info']
         
         print(f'Chamando função: {name}()')
         
@@ -71,21 +82,26 @@ class Walker(lark.visitors.Interpreter):
                     else:
                         arg_values.append(val)
 
-        func_info = self.functions[name]
-        param_names = func_info["params"]
+        
+        param_names = fn_info["params"]
         
         if len(arg_values) != len(param_names):
             rich.print(f"[red]error: function `{name}` expected {len(param_names)} arguments, found {len(arg_values)}[/red]")
-            return
+            sys.exit()
 
         local_scope = {'scope': name, 'type': 'function'}
         
         for param, value in zip(param_names, arg_values):
             local_scope[param] = {'type': 'i32', 'value': value, 'mut': False}
         
+        if "local_fn" in fn_info:
+            for local_f_name, local_f_info in fn_info["local_fn"].items():
+                local_scope[local_f_name] = {'type': 'function', 'info': local_f_info}
+
+
         symbol_table.maps.insert(0, local_scope)
         
-        f_node = func_info["node"]
+        f_node = fn_info["node"]
         for child in f_node.children:
             if isinstance(child, lark.Tree) and child.data == 'block':
                 self.visit(child) 
@@ -115,7 +131,13 @@ class Walker(lark.visitors.Interpreter):
         for x in tokens:
             if x in ('i32', 'bool'): var_type = x
 
-        symbol_table.maps[0][name] = {'type': var_type, 'value': value, 'mut': is_mut}
+        if name in symbol_table and name not in symbol_table.maps[0]:
+            origin = symbol_table[name].get('scope', 'global')
+            # no rust nao tem esse aviso nativamente, da pra habilitar
+            rich.print(f'[yellow]warning: variable `{name}` shadows an outer variable from scope `{origin}`[/yellow]')
+
+        current_scope = symbol_table.maps[0].get('scope', 'global')
+        symbol_table.maps[0][name] = {'type': var_type, 'value': value, 'mut': is_mut, 'scope': current_scope}
         rich.print(f'[green]let {"mut " if is_mut else ""}{name} = {value}[/green]')
 
     def definition_const(self, node):
@@ -127,6 +149,7 @@ class Walker(lark.visitors.Interpreter):
                 rich.print(f'[green]const {name}: {const_type} = {value}')
 
     def end(self, node):
+        #rich.print(symbol_table)
         pass
     
     def println(self, node):
@@ -151,9 +174,17 @@ def main():
     definer = Definer()
     definer.visit(tree)
     
+    for f_name, f_info in definer.functions.items():
+        symbol_table.maps[-1][f_name] = {'type': 'function', 'info': f_info}
+
     walker = Walker(functions=definer.functions)
     walker.visit(tree)
-    if 'main' in definer.functions:
+    
+    # procura se na tabela de simbolos tem a funcao main
+    # chama o walker diretamente na main
+    main_fn= symbol_table.get('main')
+
+    if main_fn and main_fn.get('type') == 'function':
         walker.call(lark.Tree('call', [lark.Token('NAME', 'main')]))
 
 if __name__ == '__main__':
