@@ -23,10 +23,15 @@ Análise semântica
 - geração de AST
 - definição de funções
 - chamadas de funções
+- variáveis mutáveis e imutáveis
+- constantes
+- verificação semântica de escopo
+- verificação de variáveis desconhecidas
+- verificação de mutabilidade
 
 # Execução
 Para executar: 
 ```bash
-python analyz-teste.py testeX.txt
+python analisador-v1.py testeX.txt
 ```
 

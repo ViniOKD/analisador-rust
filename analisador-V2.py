@@ -99,14 +99,19 @@ class Walker(lark.visitors.Interpreter):
                 local_scope[local_f_name] = {'type': 'function', 'info': local_f_info}
 
 
-        symbol_table.maps.insert(0, local_scope)
-        
+        global_scope = symbol_table.maps[-1]
+
+        new_table = collections.ChainMap(local_scope, global_scope)
+
+        old_table = symbol_table.maps
+        symbol_table.maps = new_table.maps
+
         f_node = fn_info["node"]
         for child in f_node.children:
             if isinstance(child, lark.Tree) and child.data == 'block':
-                self.visit(child) 
-        
-        symbol_table.maps.pop(0)
+                self.visit(child)
+
+        symbol_table.maps = old_table
 
     def attribution(self, node):
         tokens = [x.value for x in node.children if isinstance(x, lark.Token)]
@@ -144,9 +149,11 @@ class Walker(lark.visitors.Interpreter):
         tokens = [x.value for x in node.children if isinstance(x, lark.Token)]
         if tokens:
             name, const_type, value = tokens[0], tokens[1], tokens[-1]
-            if name not in symbol_table:
-                symbol_table.maps[0][name] = {'type': const_type, 'value': value, 'const': True}
-                rich.print(f'[green]const {name}: {const_type} = {value}')
+            if name in symbol_table.maps[0]:
+                rich.print(f'[red]error[E0428]: the name `{name}` is defined multiple times')
+                sys.exit()
+            symbol_table.maps[0][name] = {'type': const_type, 'value': value, 'const': True}
+            rich.print(f'[green]const {name}: {const_type} = {value}')
 
     def end(self, node):
         #rich.print(symbol_table)
