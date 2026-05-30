@@ -7,10 +7,8 @@ O analisador recebe como entrada um arquivo contendo o código Rust simplificado
 Exemplo de execução:
 
 ```bash
-python analisador-V2.py teste6.txt
+python analisador-V2.py testeX.txt
 ```
-
-Onde `teste6.txt` contém o programa que será analisado.
 
 ## Funcionalidades implementadas
 
