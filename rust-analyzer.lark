@@ -22,7 +22,9 @@ parameter: NAME [":" type]
 arguments:  expression ("," expression)*
 
 
-?expression: NAME | NUMBER
+?expression: NAME | NUMBER | closure 
+
+closure: "||" block
 reference: REF MUT? NAME
 ?type: REF MUT? BASE_TYPES | BASE_TYPES
 

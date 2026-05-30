@@ -1,8 +1,8 @@
 fn main() {
-    // teste
     let a = 12;
     fn f(){
         let b = 32;
         println("{b}");
     }
+    f();
 }
