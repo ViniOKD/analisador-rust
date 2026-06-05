@@ -42,10 +42,6 @@ class Definer(lark.visitors.Interpreter):
         self.functions.maps.insert(0, func_info["local_fn"])
         self.visit_children(node)
         self.functions.maps.pop(0)
-        print('TESTE: DEFININDO FUNCAO', name, f"com parâmetros {params}")   
-        
-
-
 
 class Walker(lark.visitors.Interpreter):
     def __init__(self, functions):
@@ -63,6 +59,11 @@ class Walker(lark.visitors.Interpreter):
         name = str(node.children[0])
         fn = self.look(name)
         
+        if fn and fn.get('type') == 'closure':
+            body = fn['value']['body']
+            print(f'Chamando closure: {name}()')
+            self.visit(body.children[0])
+            return
         if fn is None or fn.get('type') != 'function':
             rich.print(f"[red]error: cannot find function `{name}` in this scope[/red]")
             sys.exit()
@@ -81,8 +82,6 @@ class Walker(lark.visitors.Interpreter):
                         arg_values.append(info.get('value'))
                     else:
                         arg_values.append(val)
-
-        
         param_names = fn_info["params"]
         
         if len(arg_values) != len(param_names):
@@ -99,14 +98,19 @@ class Walker(lark.visitors.Interpreter):
                 local_scope[local_f_name] = {'type': 'function', 'info': local_f_info}
 
 
-        symbol_table.maps.insert(0, local_scope)
-        
+        global_scope = symbol_table.maps[-1]
+
+        new_table = collections.ChainMap(local_scope, global_scope)
+
+        old_table = symbol_table.maps
+        symbol_table.maps = new_table.maps
+
         f_node = fn_info["node"]
         for child in f_node.children:
             if isinstance(child, lark.Tree) and child.data == 'block':
-                self.visit(child) 
-        
-        symbol_table.maps.pop(0)
+                self.visit(child)
+
+        symbol_table.maps = old_table
 
     def attribution(self, node):
         tokens = [x.value for x in node.children if isinstance(x, lark.Token)]
@@ -125,31 +129,43 @@ class Walker(lark.visitors.Interpreter):
         tokens = [x.value for x in node.children if isinstance(x, lark.Token)]
         is_mut = 'mut' in tokens
         name = tokens[1] if is_mut else tokens[0]
-        value = tokens[-1]
+        closure_node = None
+
+        for child in node.children:
+            if isinstance(child, lark.Tree) and child.data == 'closure':
+                closure_node = child
+                break
+        if closure_node:
+            value = {'type': 'closure', 'body': closure_node}
+            var_type = 'closure'
+        else:
+            value = tokens[-1]
         
-        var_type = 'i32'
-        for x in tokens:
-            if x in ('i32', 'bool'): var_type = x
+            var_type = 'i32'
+            for x in tokens:
+                if x in ('i32', 'bool'): var_type = x
 
         if name in symbol_table and name not in symbol_table.maps[0]:
             origin = symbol_table[name].get('scope', 'global')
-            # no rust nao tem esse aviso nativamente, da pra habilitar
             rich.print(f'[yellow]warning: variable `{name}` shadows an outer variable from scope `{origin}`[/yellow]')
 
         current_scope = symbol_table.maps[0].get('scope', 'global')
         symbol_table.maps[0][name] = {'type': var_type, 'value': value, 'mut': is_mut, 'scope': current_scope}
-        rich.print(f'[green]let {"mut " if is_mut else ""}{name} = {value}[/green]')
-
+        if var_type == 'closure':
+            rich.print(f'[green]let {"mut " if is_mut else ""}{name} = <closure>[/green]')
+        else:
+            rich.print(f'[green]let {"mut " if is_mut else ""}{name} = {value}[/green]')
     def definition_const(self, node):
         tokens = [x.value for x in node.children if isinstance(x, lark.Token)]
         if tokens:
             name, const_type, value = tokens[0], tokens[1], tokens[-1]
-            if name not in symbol_table:
-                symbol_table.maps[0][name] = {'type': const_type, 'value': value, 'const': True}
-                rich.print(f'[green]const {name}: {const_type} = {value}')
+            if name in symbol_table.maps[0]:
+                rich.print(f'[red]error[E0428]: the name `{name}` is defined multiple times')
+                sys.exit()
+            symbol_table.maps[0][name] = {'type': const_type, 'value': value, 'const': True}
+            rich.print(f'[green]const {name}: {const_type} = {value}')
 
     def end(self, node):
-        #rich.print(symbol_table)
         pass
     
     def println(self, node):
