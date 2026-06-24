@@ -14,7 +14,7 @@ else:
     sys.exit()
 
 symbol_table = collections.ChainMap({'scope': 'global'})
-
+bytecode = collections.defaultdict(str)
 
 class Definer(lark.visitors.Interpreter):
     def __init__(self):
@@ -36,6 +36,8 @@ class Definer(lark.visitors.Interpreter):
         
         
         func_info = {"node": node, "params": params, "local_fn": {}}
+
+        #emit(f'fun {name}()')
 
         self.functions.maps[0][name] = func_info
         
@@ -111,6 +113,7 @@ class Walker(lark.visitors.Interpreter):
                 self.visit(child)
 
         symbol_table.maps = old_table
+        emit(f'sub {name}()')
 
     def attribution(self, node):
         tokens = [x.value for x in node.children if isinstance(x, lark.Token)]
@@ -120,6 +123,7 @@ class Walker(lark.visitors.Interpreter):
             if info.get('mut'):
                 symbol_table[name]['value'] = value
                 rich.print(f'[green]att: {name} = {value}[/green]')
+                #emit(f"set {s['scope']}:{name} {value}")
             else:
                 rich.print(f'[red]error: cannot assign to immutable variable "{name}"[/red]')
         else:
@@ -151,10 +155,13 @@ class Walker(lark.visitors.Interpreter):
 
         current_scope = symbol_table.maps[0].get('scope', 'global')
         symbol_table.maps[0][name] = {'type': var_type, 'value': value, 'mut': is_mut, 'scope': current_scope}
+        
         if var_type == 'closure':
             rich.print(f'[green]let {"mut " if is_mut else ""}{name} = <closure>[/green]')
+            #emit(f'sub {name}()')
         else:
             rich.print(f'[green]let {"mut " if is_mut else ""}{name} = {value}[/green]')
+            emit(f"set {current_scope}:{name} {value}")
     def definition_const(self, node):
         tokens = [x.value for x in node.children if isinstance(x, lark.Token)]
         if tokens:
@@ -164,12 +171,12 @@ class Walker(lark.visitors.Interpreter):
                 sys.exit()
             symbol_table.maps[0][name] = {'type': const_type, 'value': value, 'const': True}
             rich.print(f'[green]const {name}: {const_type} = {value}')
+            emit(f"set {current_scope}:{name} {value}")
 
     def end(self, node):
         pass
     
     def println(self, node):
-        
         name = str(node.children[-1]) 
         info = self.look(name)
         if info:
@@ -183,13 +190,17 @@ class Walker(lark.visitors.Interpreter):
         return None
     
 
+def emit(instruction):
+    bytecode[symbol_table.maps[0]['scope']] += instruction + '\n'
+
+
 def main():
     parser = lark.Lark(grammar, start='start')
     tree = parser.parse(program)
     rich.print(tree)
     definer = Definer()
     definer.visit(tree)
-    
+    rich.print(definer.functions)
     for f_name, f_info in definer.functions.items():
         symbol_table.maps[-1][f_name] = {'type': 'function', 'info': f_info}
 
@@ -202,6 +213,12 @@ def main():
 
     if main_fn and main_fn.get('type') == 'function':
         walker.call(lark.Tree('call', [lark.Token('NAME', 'main')]))
+    
+    for k,v in bytecode.items():
+        print(f'fun {k}\n{v}ret\n')
+
+    print(bytecode)
+
 
 if __name__ == '__main__':
     main()

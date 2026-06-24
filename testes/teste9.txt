@@ -3,7 +3,8 @@ fn outer() {
    let x = 10;
 
    fn inner() {
-       println("{}", x);
+        let y = 20;
+        println("{}", x);
    }
    inner();
 }
