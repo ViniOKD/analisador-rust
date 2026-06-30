@@ -1,0 +1,13 @@
+fun imprime_2()
+set imprime_2:a 2
+out imprime_2:a
+ret
+
+fun main()
+sub imprime_2()
+ret
+
+fun global()
+sub main()
+ret
+

@@ -1,0 +1,8 @@
+fun main()
+set main:A true
+ret
+
+fun global()
+sub main()
+ret
+

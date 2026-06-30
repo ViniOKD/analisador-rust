@@ -1,0 +1,14 @@
+fn main() {
+    executar_teste();
+}
+
+fn executar_teste() {
+    let x = 10;
+    println("{}", x);
+    
+    return x;
+
+    // Tudo abaixo deve ser ignorado pelo seu 'if self.has_returned: break'
+    let mut y = 20;
+    println("{}", y);
+}

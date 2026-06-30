@@ -123,11 +123,15 @@ class Walker(lark.visitors.Interpreter):
             if info.get('mut'):
                 symbol_table[name]['value'] = value
                 rich.print(f'[green]att: {name} = {value}[/green]')
-                #emit(f"set {s['scope']}:{name} {value}")
+                current_scope = symbol_table.maps[0].get('scope', 'global')
+                
+                emit(f"set {current_scope}:{name} {value}")
             else:
                 rich.print(f'[red]error: cannot assign to immutable variable "{name}"[/red]')
+                sys.exit()
         else:
             rich.print(f'[red]error: unknown variable {name}[/red]')
+            sys.exit()
 
     def definition_let(self, node):
         tokens = [x.value for x in node.children if isinstance(x, lark.Token)]
@@ -226,10 +230,11 @@ def main():
     for k,v in bytecode.items():
         print(f'fun {k}\n{v}ret\n')
 
-    print(bytecode)
+  
 
     bytecode_txt = ''.join(f'fun {k}()\n{v}ret\n\n' for k, v in bytecode.items())
     nome_saida = sys.argv[1].split('.')
+
     nome_saida = nome_saida[0] + '_bytecode' + '.txt'
     with open(nome_saida, 'w') as arq_saida:
         arq_saida.write(bytecode_txt)

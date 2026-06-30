@@ -1,0 +1,12 @@
+fun imprime_x()
+out imprime_x:x
+ret
+
+fun main()
+sub imprime_x()
+ret
+
+fun global()
+sub main()
+ret
+

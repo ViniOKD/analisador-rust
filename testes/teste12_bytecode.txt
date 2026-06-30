@@ -1,0 +1,13 @@
+fun outer()
+set outer:x 10
+out outer:x
+ret
+
+fun main()
+sub outer()
+ret
+
+fun global()
+sub main()
+ret
+

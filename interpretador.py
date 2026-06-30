@@ -1,11 +1,9 @@
 import sys
 
-
 def ler_bytecode(linhas):
     funcoes = {}
     nome_funcao = None
     corpo_funcao = []
-
 
     for i in range(len(linhas)):
         linha = linhas[i].strip()
@@ -18,7 +16,7 @@ def ler_bytecode(linhas):
             nome_funcao = partes[1].strip("()")
             
             if nome_funcao in funcoes:
-                raise f"Função {nome} já definida"
+                raise Exception(f"error: the name `{nome_funcao}` is defined multiple times")
             corpo_funcao = []
         elif operacao == "ret":
             if nome_funcao is None:
@@ -30,10 +28,9 @@ def ler_bytecode(linhas):
             if nome_funcao is None:
                 continue 
             corpo_funcao.append(ler_instrucoes(operacao, partes, linha, i))
-            #print(corpo_funcao)
 
     if nome_funcao is not None:
-        raise f"funcao {nome_funcao} nao foi fechada com ret"
+        raise Exception(f"error: funcao {nome_funcao} nao foi fechada com ret")
     return funcoes
 
 def ler_instrucoes(operacao, partes, linha, indice):
@@ -49,8 +46,51 @@ def ler_instrucoes(operacao, partes, linha, indice):
         escopo, variavel = partes[1].split(":", 1)
         return (operacao, (escopo, variavel), linha, indice)
     else:
-        raise f"erro: {operacao} desconhecida"
+        raise Exception(f"error: {operacao} desconhecida")
 
+def executar_bytecode(funcoes, ponto_entrada = "global"):
+    if ponto_entrada not in funcoes:
+        raise Exception(f"bytecode não contém a função de entrada '{ponto_entrada}'")
+    
+    pilha_chamadas = [
+        {
+            "funcao": ponto_entrada,
+            "pc": 0,
+            "variaveis": {}
+        }
+    ]
+    while len(pilha_chamadas) > 0:
+        contexto = pilha_chamadas[-1]
+        funcao = contexto["funcao"]
+        pc = contexto["pc"]
+        variaveis = contexto["variaveis"]
+
+        if pc >= len(funcoes[funcao]):
+            pilha_chamadas.pop()
+            continue
+
+        instrucao, args, linha, indice = funcoes[funcao][pc]
+        contexto["pc"] += 1
+
+        if instrucao == "set":
+            escopo, variavel, valor = args
+            variaveis[variavel] = valor
+        elif instrucao == "sub":
+            nova_funcao = args
+            pilha_chamadas.append({
+                "funcao": nova_funcao,
+                "pc": 0,
+                "variaveis": {}
+            })
+        elif instrucao == "out":
+            escopo, variavel = args
+            if variavel in variaveis:
+                print(f"{variaveis[variavel]}")
+            else:
+                raise Exception(f"error: cannot find value {variavel} in this scope")
+        else:
+            raise Exception(f"error: instrucao {instrucao} desconhecida")
+            
 
 def main():
     if len(sys.argv) < 2:
@@ -59,12 +99,10 @@ def main():
 
     with open(sys.argv[1], 'r') as arq:
         texto = arq.read().splitlines()
-    
-    funcoes = {}
-    print(texto)
+
     funcoes = ler_bytecode(texto)
-    print(funcoes)
-    
+
+    executar_bytecode(funcoes, ponto_entrada="global")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,11 @@
+fun main()
+set main:a 10
+out main:a
+set main:a 20
+out main:a
+ret
+
+fun global()
+sub main()
+ret
+
