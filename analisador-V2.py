@@ -143,8 +143,13 @@ class Walker(lark.visitors.Interpreter):
             value = {'type': 'closure', 'body': closure_node}
             var_type = 'closure'
         else:
-            value = tokens[-1]
-        
+            raw_value = tokens[-1]
+            ref = self.look(raw_value)
+            if ref is not None and 'value' in ref and not value.isDigit():
+                value = ref['value']
+            else:
+                value = raw_value
+
             var_type = 'i32'
             for x in tokens:
                 if x in ('i32', 'bool'): var_type = x
@@ -169,7 +174,8 @@ class Walker(lark.visitors.Interpreter):
             if name in symbol_table.maps[0]:
                 rich.print(f'[red]error[E0428]: the name `{name}` is defined multiple times')
                 sys.exit()
-            symbol_table.maps[0][name] = {'type': const_type, 'value': value, 'const': True}
+            current_scope = symbol_table.maps[0].get('scope', 'global')
+            symbol_table.maps[0][name] = {'type': const_type, 'value': value, 'const': True, 'scope' : current_scope}
             rich.print(f'[green]const {name}: {const_type} = {value}')
             emit(f"set {current_scope}:{name} {value}")
 
@@ -181,8 +187,11 @@ class Walker(lark.visitors.Interpreter):
         info = self.look(name)
         if info:
             rich.print(f'[blue][Output] {info.get("value")}[/blue]')
+            current_scope = symbol_table.maps[0].get('scope', 'global')
+            emit(f'out {current_scope}:{name}')
         else:
             rich.print(f'[red]error: cannot find value "{name}" in this scope[/red]')
+            sys.exit()
 
     def look(self, name):
         if name in symbol_table:
@@ -219,6 +228,13 @@ def main():
 
     print(bytecode)
 
+    bytecode_txt = ''.join(f'fun {k}()\n{v}ret\n\n' for k, v in bytecode.items())
+    nome_saida = sys.argv[1].split('.')
+    nome_saida = nome_saida[0] + '_bytecode' + '.txt'
+    with open(nome_saida, 'w') as arq_saida:
+        arq_saida.write(bytecode_txt)
+
+    print(f'bytecode salvo em {nome_saida}')
 
 if __name__ == '__main__':
     main()
