@@ -37,7 +37,7 @@ class Definer(lark.visitors.Interpreter):
         
         func_info = {"node": node, "params": params, "local_fn": {}}
 
-        #emit(f'fun {name}()')
+  
 
         self.functions.maps[0][name] = func_info
         
@@ -64,7 +64,8 @@ class Walker(lark.visitors.Interpreter):
         if fn and fn.get('type') == 'closure':
             body = fn['value']['body']
             print(f'Chamando closure: {name}()')
-            self.visit(body.children[0])
+            emit(f'sub {name}()')
+
             return
         if fn is None or fn.get('type') != 'function':
             rich.print(f"[red]error: cannot find function `{name}` in this scope[/red]")
@@ -123,9 +124,9 @@ class Walker(lark.visitors.Interpreter):
             if info.get('mut'):
                 symbol_table[name]['value'] = value
                 rich.print(f'[green]att: {name} = {value}[/green]')
-                current_scope = symbol_table.maps[0].get('scope', 'global')
+                var_scope = symbol_table.maps[0].get('scope', 'global')
                 
-                emit(f"set {current_scope}:{name} {value}")
+                emit(f"set {var_scope}():{name} {value}")
             else:
                 rich.print(f'[red]error: cannot assign to immutable variable "{name}"[/red]')
                 sys.exit()
@@ -144,12 +145,18 @@ class Walker(lark.visitors.Interpreter):
                 closure_node = child
                 break
         if closure_node:
-            value = {'type': 'closure', 'body': closure_node}
+            value = {'type': 'closure','name': name, 'body': closure_node}
             var_type = 'closure'
+            symbol_table.maps[0][name] = {
+                'type': 'closure',
+                'body': closure_node
+            }
+
+            self.compile_closure(name, closure_node)
         else:
             raw_value = tokens[-1]
             ref = self.look(raw_value)
-            if ref is not None and 'value' in ref and not value.isDigit():
+            if ref is not None and 'value' in ref and not raw_value.isdigit():
                 value = ref['value']
             else:
                 value = raw_value
@@ -167,10 +174,9 @@ class Walker(lark.visitors.Interpreter):
         
         if var_type == 'closure':
             rich.print(f'[green]let {"mut " if is_mut else ""}{name} = <closure>[/green]')
-            #emit(f'sub {name}()')
         else:
             rich.print(f'[green]let {"mut " if is_mut else ""}{name} = {value}[/green]')
-            emit(f"set {current_scope}:{name} {value}")
+            emit(f"set {current_scope}():{name} {value}")
     def definition_const(self, node):
         tokens = [x.value for x in node.children if isinstance(x, lark.Token)]
         if tokens:
@@ -181,18 +187,28 @@ class Walker(lark.visitors.Interpreter):
             current_scope = symbol_table.maps[0].get('scope', 'global')
             symbol_table.maps[0][name] = {'type': const_type, 'value': value, 'const': True, 'scope' : current_scope}
             rich.print(f'[green]const {name}: {const_type} = {value}')
-            emit(f"set {current_scope}:{name} {value}")
+            emit(f"set {current_scope}():{name} {value}")
 
     def end(self, node):
         pass
-    
+
+    def compile_closure(self, name, closure_node):
+        old_scope = symbol_table.maps[0]['scope']
+
+        symbol_table.maps[0]['scope'] = name
+
+        self.visit(closure_node.children[0])
+
+        symbol_table.maps[0]['scope'] = old_scope
+
     def println(self, node):
         name = str(node.children[-1]) 
         info = self.look(name)
         if info:
             rich.print(f'[blue][Output] {info.get("value")}[/blue]')
-            current_scope = symbol_table.maps[0].get('scope', 'global')
-            emit(f'out {current_scope}:{name}')
+            var_scope = info.get('scope', 'global')
+
+            emit(f'out {var_scope}():{name}')
         else:
             rich.print(f'[red]error: cannot find value "{name}" in this scope[/red]')
             sys.exit()

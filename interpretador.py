@@ -20,7 +20,7 @@ def ler_bytecode(linhas):
             corpo_funcao = []
         elif operacao == "ret":
             if nome_funcao is None:
-                continue # n sei oq tem q acontecer nesse caso
+                continue 
             funcoes[nome_funcao] = corpo_funcao # atribui todo o corpo da funcao no nome da funcao 
             nome_funcao = None # reseta o nome
             corpo_funcao = [] # reseta o corpo
@@ -36,7 +36,7 @@ def ler_bytecode(linhas):
 def ler_instrucoes(operacao, partes, linha, indice):
     if operacao == "set":
         escopo, variavel = partes[1].split(":", 1)
-
+        escopo = escopo.strip("()")
         valor = partes[2]
         return(operacao, (escopo, variavel, valor), linha, indice)
     elif operacao == "sub":
@@ -44,6 +44,7 @@ def ler_instrucoes(operacao, partes, linha, indice):
         return(operacao, funcao, linha, indice)
     elif operacao == "out":
         escopo, variavel = partes[1].split(":", 1)
+        escopo = escopo.strip("()")
         return (operacao, (escopo, variavel), linha, indice)
     else:
         raise Exception(f"error: {operacao} desconhecida")
@@ -74,9 +75,21 @@ def executar_bytecode(funcoes, ponto_entrada = "global"):
 
         if instrucao == "set":
             escopo, variavel, valor = args
-            variaveis[variavel] = valor
+            encontrou = False
+
+            for frame in reversed(pilha_chamadas):
+                if frame["funcao"] == escopo:
+                    frame["variaveis"][variavel] = valor
+                    encontrou = True
+                    break
+
+            if not encontrou:
+                raise Exception(f"error: scope {escopo} not found")
+            
         elif instrucao == "sub":
             nova_funcao = args
+            if nova_funcao not in funcoes:
+                raise Exception(f"error: function {nova_funcao} not found")
             pilha_chamadas.append({
                 "funcao": nova_funcao,
                 "pc": 0,
@@ -84,14 +97,20 @@ def executar_bytecode(funcoes, ponto_entrada = "global"):
             })
         elif instrucao == "out":
             escopo, variavel = args
-            if variavel in variaveis:
-                print(f"{variaveis[variavel]}")
-            else:
-                raise Exception(f"error: cannot find value {variavel} in this scope")
+            encontrou = False
+
+            for frame in reversed(pilha_chamadas):
+                if frame["funcao"] == escopo:
+                    if variavel in frame["variaveis"]:
+                        print(frame["variaveis"][variavel])
+                        encontrou = True
+                        break
+
+            if not encontrou:
+                raise Exception(f"error: cannot find value {variavel} in scope {escopo}")
         else:
             raise Exception(f"error: instrucao {instrucao} desconhecida")
             
-
 def main():
     if len(sys.argv) < 2:
         print("usage: program.py inst_bytecode.txt")
